@@ -393,6 +393,22 @@ def build_parser() -> argparse.ArgumentParser:
     b.add_argument("-i", "--input", required=True, help="Input CSV path")
     b.add_argument("-o", "--output", default="results.csv", help="Output CSV path")
 
+    # Audit - process a task through the enterprise supervisor
+    a = sub.add_parser("audit", help="Run enterprise audit on a task")
+    a.add_argument("--task-id", required=True, help="Task identifier")
+    a.add_argument("--target", default="AUDIT-TARGET", help="Target identifier")
+    a.add_argument("--primary", type=float, default=10.0, help="Primary metric")
+    a.add_argument("--secondary", type=float, default=5.0, help="Secondary metric")
+    a.add_argument("--descriptor", default="NOMINAL", help="Status descriptor")
+    a.add_argument("--critical", action="store_true", help="Critical flag")
+
+    # Chat - supervisory conversational assistant
+    c = sub.add_parser("chat", help="Supervisory conversational assistant")
+    c.add_argument("query", nargs="+", help="Query text for the supervisor")
+
+    # Verify audit - verify cryptographic audit trail integrity
+    sub.add_parser("verify-audit", help="Verify HMAC-SHA256 audit trail integrity")
+
     return p
 
 
@@ -422,6 +438,37 @@ def main(argv=None):
     if args.cmd == "batch":
         n = process_csv(args.input, args.output)
         print(f"Processed {n} records -> {args.output}")
+        return 0
+
+    if args.cmd == "audit":
+        from agents.models import SystemTaskPayload
+        from agents.supervisor import SystemSupervisor
+        supervisor = SystemSupervisor(model_provider="mock")
+        payload = SystemTaskPayload(
+            task_id=args.task_id,
+            target_identifier=args.target,
+            primary_metric=args.primary,
+            secondary_metric=args.secondary,
+            status_descriptor=args.descriptor,
+            is_critical_flag=args.critical,
+        )
+        dossier = supervisor.process_task(payload)
+        print(json.dumps(dossier.to_dict(), indent=2, default=str))
+        return 0
+
+    if args.cmd == "chat":
+        from agents.supervisor import SystemSupervisor
+        supervisor = SystemSupervisor(model_provider="mock")
+        query = " ".join(args.query)
+        response = supervisor.query_supervisory_chat(query)
+        print(json.dumps({"response": response}, indent=2))
+        return 0
+
+    if args.cmd == "verify-audit":
+        from agents.base import AuditLogger
+        valid = AuditLogger.verify_integrity()
+        trail_len = len(AuditLogger.get_trail())
+        print(json.dumps({"audit_valid": valid, "trail_length": trail_len}, indent=2))
         return 0
 
     parser.print_help()
