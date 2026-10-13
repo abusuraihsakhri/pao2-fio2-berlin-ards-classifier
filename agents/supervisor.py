@@ -25,6 +25,7 @@ class SystemSupervisor:
         PHIGuard.assert_no_phi(payload.task_id)
         PHIGuard.assert_no_phi(payload.target_identifier)
         PHIGuard.assert_no_phi(payload.status_descriptor)
+        PHIGuard.assert_no_phi(payload.model_dump_json())
 
         # Multi-worker evaluations
         all_alerts: List[AgentAlert] = []
