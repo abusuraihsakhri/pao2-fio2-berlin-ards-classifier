@@ -35,53 +35,41 @@ PATM_DEFAULT = 760.0   # mmHg, standard atmospheric pressure at sea level
 PH2O_DEFAULT = 47.0    # mmHg, water vapour pressure at 37 C
 RQ = 0.8               # respiratory quotient
 
+def _finite(name: str, value: float, minimum: float | None = None,
+            maximum: float | None = None, strict_min: bool = False) -> None:
+    """Reject non-finite values and measurements outside accepted ranges."""
+    if not isinstance(value, (int, float)) or not math.isfinite(value):
+        raise ValueError(f"{name} must be a finite number")
+    if minimum is not None and (value <= minimum if strict_min else value < minimum):
+        op = ">" if strict_min else ">="
+        raise ValueError(f"{name} must be {op} {minimum}")
+    if maximum is not None and value > maximum:
+        raise ValueError(f"{name} must be <= {maximum}")
+
+
+def _oxygen_fraction(fio2: float) -> None:
+    _finite("FiO2", fio2, 0, 1, strict_min=True)
+
 
 # ---------------------------------------------------------------------------
 # Core calculations
 # ---------------------------------------------------------------------------
 
 def pf_ratio(pao2: float, fio2: float) -> float:
-    """Calculate PaO2/FiO2 ratio.
-
-    Args:
-        pao2: Arterial oxygen partial pressure in mmHg.
-        fio2: Fraction of inspired oxygen (0.0 - 1.0).
-
-    Returns:
-        P/F ratio as a float.
-
-    Raises:
-        ValueError: If fio2 <= 0 or pao2 < 0.
-    """
-    if fio2 <= 0:
-        raise ValueError("FiO2 must be > 0")
-    if pao2 < 0:
-        raise ValueError("PaO2 must be >= 0")
+    """Calculate PaO2 / FiO2 with PaO2 in mmHg and FiO2 as a fraction."""
+    _finite("PaO2", pao2, 0)
+    _oxygen_fraction(fio2)
     return pao2 / fio2
 
-
 def spo2_fio2_ratio(spo2: float, fio2: float) -> float:
-    """Calculate SpO2/FiO2 ratio (surrogate for P/F ratio).
-
-    Normal ~476 when SpO2=100%, FiO2=0.21.
-
-    Args:
-        spo2: Oxygen saturation percentage (0-100).
-        fio2: Fraction of inspired oxygen (0.0 - 1.0).
-
-    Returns:
-        S/F ratio.
-    """
-    if fio2 <= 0:
-        raise ValueError("FiO2 must be > 0")
-    if spo2 < 0 or spo2 > 100:
-        raise ValueError("SpO2 must be between 0 and 100")
+    """Compute SpO2/FiO2; clinical interpretation is limited at high SpO2."""
+    _finite("SpO2", spo2, 0, 100)
+    _oxygen_fraction(fio2)
     return spo2 / fio2
 
-
 def estimate_pao2_from_spo2(spo2: float) -> float:
-    """Estimate PaO2 from SpO2 using a clinical approximation of the
-    oxyhemoglobin dissociation curve (Severinghaus-derived).
+    """Educational PaO2 interpolation from SpO2 using a simplified
+    oxyhemoglobin dissociation curve; not clinically validated.
 
     Piecewise linear approximation based on standard curve data points:
         SpO2 90% -> PaO2 ~60 mmHg
@@ -96,8 +84,7 @@ def estimate_pao2_from_spo2(spo2: float) -> float:
     Returns:
         Estimated PaO2 in mmHg.
     """
-    if spo2 < 0 or spo2 > 100:
-        raise ValueError("SpO2 must be between 0 and 100")
+    _finite("SpO2", spo2, 0, 100)
     if spo2 >= 90.0:
         # Flat portion: PaO2 ~60 at SpO2 90, ~100 at SpO2 100
         return 60.0 + (spo2 - 90.0) * 4.0
@@ -128,67 +115,35 @@ def estimate_pf_from_spo2_fio2(spo2: float, fio2: float) -> float:
 
 
 def oxygenation_index(fio2: float, map_pressure: float, pao2: float) -> float:
-    """Calculate Oxygenation Index (OI).
-
-    OI = (FiO2 * MAP * 100) / PaO2
-
-    Higher OI indicates worse oxygenation. OI > 40 is associated with
-    high mortality in pediatric ARDS.
-
-    Args:
-        fio2: Fraction of inspired oxygen (0.0 - 1.0).
-        map_pressure: Mean airway pressure in cmH2O.
-        pao2: Arterial oxygen partial pressure in mmHg.
-
-    Returns:
-        Oxygenation Index.
-
-    Raises:
-        ValueError: If pao2 <= 0.
-    """
-    if pao2 <= 0:
-        raise ValueError("PaO2 must be > 0 for OI calculation")
-    if fio2 < 0 or fio2 > 1:
-        raise ValueError("FiO2 must be between 0 and 1")
-    if map_pressure < 0:
-        raise ValueError("MAP must be >= 0")
+    """Oxygenation Index = FiO2 * mean airway pressure * 100 / PaO2."""
+    _oxygen_fraction(fio2)
+    _finite("MAP", map_pressure, 0)
+    _finite("PaO2", pao2, 0, strict_min=True)
     return (fio2 * map_pressure * 100.0) / pao2
 
-
 def a_a_gradient(
-    fio2: float,
-    pao2: float,
-    paco2: float,
-    patm: float = PATM_DEFAULT,
-    ph2o: float = PH2O_DEFAULT,
+    fio2: float, pao2: float, paco2: float,
+    patm: float = PATM_DEFAULT, ph2o: float = PH2O_DEFAULT,
     rq: float = RQ,
 ) -> float:
-    """Calculate A-a (alveolar-arterial) oxygen gradient.
-
-    A-aDO2 = (FiO2 * (Patm - PH2O)) - (PaO2 + PaCO2 / RQ)
-
-    Args:
-        fio2: Fraction of inspired oxygen (0.0 - 1.0).
-        pao2: Arterial O2 partial pressure (mmHg).
-        paco2: Arterial CO2 partial pressure (mmHg).
-        patm: Atmospheric pressure (mmHg). Default 760.
-        ph2o: Water vapour pressure (mmHg). Default 47.
-        rq: Respiratory quotient. Default 0.8.
-
-    Returns:
-        A-a gradient in mmHg.
-    """
-    pao2_alveolar = fio2 * (patm - ph2o) - (paco2 / rq)
-    return pao2_alveolar - pao2
-
+    """Simplified alveolar gas equation (fixed respiratory quotient)."""
+    _oxygen_fraction(fio2)
+    _finite("PaO2", pao2, 0)
+    _finite("PaCO2", paco2, 0)
+    _finite("Patm", patm, 0, strict_min=True)
+    _finite("PH2O", ph2o, 0)
+    _finite("RQ", rq, 0, strict_min=True)
+    if ph2o >= patm:
+        raise ValueError("PH2O must be less than Patm")
+    return fio2 * (patm - ph2o) - paco2 / rq - pao2
 
 def normal_a_a_gradient(age: float, fio2: float = 0.21) -> float:
     """Calculate expected normal A-a gradient for age.
 
     Normal A-aDO2 = (Age / 4) + 4  (on room air, FiO2 0.21)
 
-    On supplemental O2, the expected gradient increases. A common
-    adjustment is to add ~5-7 mmHg for each 10% increase in FiO2 above 0.21.
+    This age-only rule is a room-air approximation; do not use it to
+    interpret A-a gradients on supplemental oxygen.
 
     Args:
         age: Patient age in years.
@@ -197,11 +152,11 @@ def normal_a_a_gradient(age: float, fio2: float = 0.21) -> float:
     Returns:
         Expected normal A-a gradient in mmHg.
     """
-    base = (age / 4.0) + 4.0
-    # Adjustment for supplemental O2
-    if fio2 > 0.21:
-        base += (fio2 - 0.21) / 0.1 * 5.0
-    return base
+    _finite("Age", age, 0)
+    _oxygen_fraction(fio2)
+    # Age/4 + 4 is a room-air rule of thumb; supplemental oxygen
+    # does not have a validated linear "normal A-a" correction.
+    return (age / 4.0) + 4.0
 
 
 def berlin_ards_classification(
@@ -209,52 +164,38 @@ def berlin_ards_classification(
     fio2: float,
     peep: Optional[float] = None,
 ) -> Dict[str, Any]:
-    """Classify ARDS severity per the Berlin Definition (2012).
-
-    The Berlin definition requires:
-    - Acute onset (within 1 week of known insult)
-    - Bilateral opacities on imaging (not fully explained by effusions/atelectasis)
-    - Respiratory failure not fully explained by cardiac failure/fluid overload
-    - P/F ratio measured with PEEP >= 5 cmH2O
-
-    This function classifies based on P/F ratio and optionally validates PEEP.
-
-    Args:
-        pao2: Arterial O2 partial pressure (mmHg).
-        fio2: Fraction of inspired oxygen (0.0 - 1.0).
-        peep: Positive end-expiratory pressure (cmH2O). If provided and < 5,
-              a warning is included since Berlin requires PEEP >= 5.
-
-    Returns:
-        Dict with keys: pf_ratio, severity, peep_warning, meets_peep_criteria.
-    """
+    """Return Berlin oxygenation range, not a confirmed clinical diagnosis."""
     pf = pf_ratio(pao2, fio2)
-
-    peep_warning = None
-    meets_peep = True
-    if peep is not None and peep < 5.0:
-        peep_warning = (
-            f"PEEP {peep} cmH2O is below the Berlin minimum of 5 cmH2O. "
-            "Classification may not be valid per Berlin definition."
-        )
-        meets_peep = False
-
+    if peep is not None:
+        _finite("PEEP", peep, 0)
     if pf > 300:
-        severity = "No ARDS (P/F > 300)"
+        severity = "No ARDS oxygenation criterion (P/F > 300)"
     elif pf > 200:
-        severity = "Mild ARDS (P/F 201-300)"
+        severity = "Mild ARDS oxygenation range (200 < P/F <= 300)"
     elif pf > 100:
-        severity = "Moderate ARDS (P/F 101-200)"
+        severity = "Moderate ARDS oxygenation range (100 < P/F <= 200)"
     else:
-        severity = "Severe ARDS (P/F <= 100)"
+        severity = "Severe ARDS oxygenation range (P/F <= 100)"
+
+    meets_peep = peep is not None and peep >= 5
+    if peep is None:
+        warning = "PEEP/CPAP not supplied; Berlin positive-pressure criterion unverified."
+    elif peep < 5:
+        warning = f"PEEP/CPAP {peep} cmH2O is below the Berlin minimum of 5 cmH2O."
+    else:
+        warning = None
 
     return {
         "pf_ratio": round(pf, 1),
         "severity": severity,
-        "peep_warning": peep_warning,
+        "peep_warning": warning,
         "meets_peep_criteria": meets_peep,
+        "ards_diagnosis_confirmed": False,
+        "clinical_criteria_warning": (
+            "Oxygenation range alone cannot diagnose ARDS: confirm acute onset, "
+            "bilateral opacities, and respiratory failure not primarily cardiac."
+        ),
     }
-
 
 def comprehensive_respiratory_assessment(
     pao2: float,
@@ -294,7 +235,10 @@ def comprehensive_respiratory_assessment(
     if age is not None:
         expected_aa = normal_a_a_gradient(age, fio2)
         result["normal_a_a_gradient"] = round(expected_aa, 1)
-        result["a_a_gradient_elevated"] = aa > expected_aa
+        if math.isclose(fio2, 0.21, abs_tol=1e-9):
+            result["a_a_gradient_elevated"] = aa > expected_aa
+        else:
+            result["normal_a_a_gradient_note"] = "Age-based reference is for room air only"
 
     # Oxygenation Index
     if map_pressure is not None:
@@ -309,6 +253,13 @@ def comprehensive_respiratory_assessment(
         result["estimated_pao2_from_spo2"] = round(est_pao2, 1)
         est_pf = pf_ratio(est_pao2, fio2)
         result["estimated_pf_from_spo2"] = round(est_pf, 1)
+        result["estimated_pao2_note"] = (
+            "Simple educational interpolation only; not validated for clinical decisions"
+        )
+        if spo2 > 97:
+            result["spo2_fio2_warning"] = (
+                "SpO2/FiO2 is unreliable for ARDS severity at SpO2 > 97%"
+            )
 
     return result
 
@@ -318,42 +269,50 @@ def comprehensive_respiratory_assessment(
 # ---------------------------------------------------------------------------
 
 def process_csv(input_path: str, output_path: str) -> int:
-    """Process a CSV of patient respiratory data and write results.
-
-    Expected columns: pao2, fio2, paco2
-    Optional columns: peep, map, age, spo2, patm, patient_id
-
-    Returns number of records processed.
-    """
+    """Process CSV rows, allowing heterogeneous optional output metrics."""
+    import os
+    if os.path.abspath(input_path) == os.path.abspath(output_path):
+        raise ValueError("Input and output CSV paths must differ")
     results: List[Dict[str, Any]] = []
     with open(input_path, newline="", encoding="utf-8-sig") as f:
         reader = csv.DictReader(f)
-        for row in reader:
-            pao2 = float(row["pao2"])
-            fio2_val = float(row["fio2"])
-            paco2 = float(row["paco2"])
-            peep = float(row["peep"]) if "peep" in row and row["peep"] else None
-            map_p = float(row["map"]) if "map" in row and row["map"] else None
-            age = float(row["age"]) if "age" in row and row["age"] else None
-            spo2 = float(row["spo2"]) if "spo2" in row and row["spo2"] else None
-            patm = float(row["patm"]) if "patm" in row and row["patm"] else PATM_DEFAULT
-            pid = row.get("patient_id", "")
+        required = {"pao2", "fio2", "paco2"}
+        if not reader.fieldnames or not required.issubset(reader.fieldnames):
+            raise ValueError("CSV requires columns: pao2, fio2, paco2")
+        for row_number, row in enumerate(reader, start=2):
+            try:
+                if None in row:
+                    raise ValueError("more cells than CSV header")
+                def optional(field: str) -> Optional[float]:
+                    value = row.get(field)
+                    return float(value) if value is not None and value.strip() else None
+                patm = optional("patm")
+                res = comprehensive_respiratory_assessment(
+                    pao2=float(row["pao2"]),
+                    fio2=float(row["fio2"]),
+                    paco2=float(row["paco2"]),
+                    peep=optional("peep"), map_pressure=optional("map"),
+                    age=optional("age"), spo2=optional("spo2"),
+                    patm=patm if patm is not None else PATM_DEFAULT,
+                )
+                identifier = row.get("patient_id", "") or ""
+                # Prevent spreadsheet formula execution in exported CSV.
+                if identifier.lstrip().startswith(("=", "+", "-", "@")):
+                    identifier = "'" + identifier
+                res["patient_id"] = identifier
+                results.append(res)
+            except (ValueError, TypeError, KeyError) as exc:
+                raise ValueError(f"Invalid CSV data at row {row_number}: {exc}") from exc
 
-            res = comprehensive_respiratory_assessment(
-                pao2, fio2_val, paco2, peep=peep, map_pressure=map_p,
-                age=age, spo2=spo2, patm=patm,
-            )
-            res["patient_id"] = pid
-            results.append(res)
-
-    fieldnames = list(results[0].keys()) if results else []
+    base_columns = ["patient_id", "pf_ratio", "severity", "peep_warning",
+                    "meets_peep_criteria", "ards_diagnosis_confirmed",
+                    "clinical_criteria_warning", "a_a_gradient"]
+    fields = base_columns + sorted({key for row in results for key in row} - set(base_columns))
     with open(output_path, "w", newline="", encoding="utf-8") as f:
-        writer = csv.DictWriter(f, fieldnames=fieldnames)
+        writer = csv.DictWriter(f, fieldnames=fields)
         writer.writeheader()
         writer.writerows(results)
-
     return len(results)
-
 
 # ---------------------------------------------------------------------------
 # CLI

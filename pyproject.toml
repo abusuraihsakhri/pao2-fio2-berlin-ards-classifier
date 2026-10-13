@@ -30,13 +30,14 @@ dependencies = [
 
 [project.optional-dependencies]
 web = ["fastapi>=0.110", "uvicorn>=0.27"]
-dev = ["pytest>=7.0", "pytest-asyncio"]
+dev = ["pytest>=7.0", "pytest-asyncio", "httpx>=0.27"]
 
 [project.scripts]
 pf-ratio-ards = "pf_ratio_ards:main"
 
 [tool.setuptools]
 packages = ["agents"]
+py-modules = ["pf_ratio_ards", "cli", "enrichment", "simulator"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests", "."]

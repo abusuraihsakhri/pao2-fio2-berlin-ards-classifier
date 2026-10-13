@@ -1,191 +1,85 @@
-# PaO2/FiO2 Ratio & Berlin ARDS Classifier
+# PaO₂/FiO₂ Ratio & Berlin ARDS Classifier
 
-> **Domain:** Clinical Decision Support & Biomedical Computing  
-> **Reference Guidelines & Standards:** Berlin Definition (2012), ISO/IEC Quality Frameworks
+Clinical-education utilities for oxygenation assessment using the **Berlin (2012)** PaO₂/FiO₂ severity ranges. Includes a dependency-free browser calculator, a Python library/CLI, CSV batch processing, and an optional FastAPI service.
 
-<div align="center">
+**Important:** An oxygenation ratio is **not an ARDS diagnosis**. The Berlin definition also requires acute timing, bilateral opacities, noncardiogenic origin of edema, and relevant positive airway pressure (PEEP ≥5 cmH₂O; CPAP is permitted for mild ARDS). The [2024 Global Definition](https://doi.org/10.1164/rccm.202303-0558WS) adds other pathways and is **not** implemented here.
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-![Python](https://img.shields.io/badge/Python-3.10%20%7C%203.11%20%7C%203.12-3776AB.svg?logo=python&logoColor=white)
-![Audit Trail](https://img.shields.io/badge/Audit-HMAC--SHA256_Tamper--Evident-brightgreen.svg)
-![Zero-PHI Guard](https://img.shields.io/badge/Guard-Zero--PHI_Outbound-blue.svg)
-![Docker](https://img.shields.io/badge/Docker-Ready-2496ED.svg?logo=docker&logoColor=white)
+## Browser calculator
 
-</div>
+The `web/` directory contains a responsive static HTML/JavaScript app with no framework, build step, external scripts, or Python runtime. It supports:
 
----
+- P/F oxygenation category: severe (≤100), moderate (>100–200), mild (>200–300), outside range (>300).
+- Validation for missing PEEP and out-of-range/non-finite measurements.
+- Optional A–a gradient, oxygenation index, age-based room-air A–a heuristic and SpO₂/FiO₂ ratio.
+- JSON result export and local CSV batch import/export (5 MB / 10,000 rows maximum).
+- Explicit interpretation warnings; **no diagnostic confirmation**.
 
-## 📖 What It Does
-
-Clinical calculators for respiratory failure assessment based on the Berlin ARDS Definition (2012):
-
-- **P/F Ratio** = PaO2 / FiO2
-- **Berlin ARDS Classification:**
-    - Mild:     P/F 201-300  (with PEEP >= 5 cmH2O)
-    - Moderate: P/F 101-200  (with PEEP >= 5 cmH2O)
-    - Severe:   P/F <= 100   (with PEEP >= 5 cmH2O)
-- **Oxygenation Index (OI)** = (FiO2 * MAP * 100) / PaO2
-- **A-a Gradient:** A-aDO2 = (FiO2 * (Patm - PH2O)) - (PaCO2 / RQ)
-  - Normal A-aDO2 = (Age / 4) + 4
-- **SpO2/FiO2 ratio** (surrogate for P/F)
-- **Estimated PaO2 from SpO2** (Severinghaus-like piecewise approximation)
-
-Author: Dr. Abu Suraih Sakhri. License: MIT.
-
----
-
-## ⚙️ Key Capabilities & Algorithmic Modules
-
-### 🔬 Analytical Functions
-
-- **`pf_ratio(pao2, fio2)`**: Calculate PaO2/FiO2 ratio.
-- **`spo2_fio2_ratio(spo2, fio2)`**: Calculate SpO2/FiO2 ratio (surrogate for P/F ratio).
-- **`estimate_pao2_from_spo2(spo2)`**: Estimate PaO2 from SpO2 using piecewise linear approximation of the oxyhemoglobin dissociation curve.
-- **`estimate_pf_from_spo2_fio2(spo2, fio2)`**: Estimate P/F ratio from SpO2 and FiO2.
-- **`oxygenation_index(fio2, map_pressure, pao2)`**: Calculate Oxygenation Index (OI).
-- **`a_a_gradient(fio2, pao2, paco2, patm, ph2o, rq)`**: Calculate A-a (alveolar-arterial) oxygen gradient.
-- **`normal_a_a_gradient(age, fio2)`**: Calculate expected normal A-a gradient for age.
-- **`berlin_ards_classification(pao2, fio2, peep)`**: Classify ARDS severity per Berlin Definition.
-- **`comprehensive_respiratory_assessment(...)`**: Full respiratory assessment combining all calculators.
-
----
-
-## 💻 CLI Quickstart & Usage
-
-### Installation
-```bash
-pip install -e ".[dev]"
-```
-
-### Single Patient Assessment
-```bash
-python cli.py single --pao2 80 --fio2 0.5 --paco2 40 --peep 10 --age 65 --spo2 95
-```
-
-### P/F Ratio Only
-```bash
-python cli.py pf --pao2 100 --fio2 0.21
-```
-
-### Berlin ARDS Classification
-```bash
-python cli.py berlin --pao2 60 --fio2 0.4 --peep 10
-```
-
-### Batch CSV Processing
-```bash
-python cli.py batch -i input.csv -o results.csv
-```
-
-### Enterprise Audit
-```bash
-python cli.py audit --task-id TASK-001 --primary 12.0 --secondary 4.0
-```
-
-### Supervisory Chat
-```bash
-python cli.py chat "Explain the Berlin criteria"
-```
-
-### Verify Audit Trail
-```bash
-python cli.py verify-audit
-```
-
-### Input Data Schema (CSV)
-
-| Field | Description | Requirement |
-|:------|:------------|:------------|
-| `pao2` | Arterial O2 partial pressure (mmHg) | Required |
-| `fio2` | Fraction of inspired oxygen (0.0-1.0) | Required |
-| `paco2` | Arterial CO2 partial pressure (mmHg) | Required |
-| `peep` | Positive end-expiratory pressure (cmH2O) | Optional |
-| `map` | Mean airway pressure (cmH2O) | Optional |
-| `age` | Patient age (years) | Optional |
-| `spo2` | Oxygen saturation (%) | Optional |
-| `patm` | Atmospheric pressure (mmHg) | Optional |
-| `patient_id` | Patient identifier | Optional |
-
----
-
-## 🛡️ Security & Enterprise Architecture
-
-* **Zero-PHI Outbound Interceptor:** Regex-based inspection blocking SSNs, MRNs, phone numbers, emails, DOBs, and patient names from outbound data.
-* **Tamper-Evident HMAC-SHA256 Audit Trail:** Chained, cryptographically signed logs for every evaluation and state transition.
-* **LLM Reasoning Adapter:** Agnostic integration for local Ollama instances, Claude, OpenAI, and deterministic test mocks.
-* **Active Learning Bayesian Calibration:** Dynamic tracker updating worker reliability weights and monitoring Brier calibration drift.
-* **FastAPI REST API:** OpenAPI 3.1 REST endpoints with Prometheus-compatible metrics.
-
----
-
-## 🧪 Testing & Verification
-
-Run the automated test suite:
+To serve the static app locally:
 
 ```bash
-pytest -v
+python -m http.server 8080 --directory web
+# Open http://localhost:8080/
 ```
 
-Run with coverage:
+The browser calculations are implemented directly in JavaScript; **Pyodide/PyScript is not required**. Browser compatibility: modern browsers with ES modules, File API, and Blob download support. On the static site, calculations and files remain in the browser; no application requests are made to a server.
+
+## Python CLI and library
+
+Requires Python 3.10 or later.
 
 ```bash
-pytest -v --tb=short
+python -m pip install -e ".[dev]"
+pf-ratio-ards pf --pao2 100 --fio2 0.21
+pf-ratio-ards berlin --pao2 60 --fio2 0.4 --peep 10
+pf-ratio-ards single --pao2 80 --fio2 0.5 --paco2 40 --peep 10 --age 65 --spo2 95
+pf-ratio-ards batch --input sample.csv --output results.csv
 ```
 
-Execute high-throughput batch simulation benchmarks:
+Required batch columns: `pao2`, `fio2`, `paco2`. Optional: `peep`, `map`, `age`, `spo2`, `patm`, `patient_id`. FiO₂ uses a fraction (e.g. 0.5), PaO₂/PaCO₂ use mmHg. Invalid data stop the batch operation with a row number. No files are overwritten until all rows validate.
+
+The library exposes `pf_ratio`, `berlin_ards_classification`, `comprehensive_respiratory_assessment`, `oxygenation_index`, `a_a_gradient`, and supporting functions in `pf_ratio_ards.py`. SpO₂-to-PaO₂ estimation is an **unvalidated piecewise approximation for educational use only**; it is not suitable for oxygenation-based clinical decisions. Age-adjusted expected A–a values are room-air heuristics.
+
+## Optional API / Docker
 
 ```bash
-python simulator.py 1000
+python -m pip install -e ".[web]"
+uvicorn agents.api:app --host 127.0.0.1 --port 8000
+# API documentation: http://127.0.0.1:8000/docs
 ```
 
----
+`POST /api/assessment` calculates oxygenation measures with input validation. The API serves the browser app at `/`. The existing demonstration audit endpoints (`/api/audit`, `/api/chat`, `/metrics`) remain, but the generic worker thresholds and mock chat are **not clinical rules or medical guidance**. `/api/audit/logs` requires `AUDIT_ADMIN_KEY` and the matching `X-Admin-Key` header.
 
-## 🐳 Container Deployment
-
-### Docker Build & Run
-```bash
-docker build -t pao2-fio2-berlin-ards-classifier .
-docker run -e AUDIT_SECRET_KEY=your-secure-key pao2-fio2-berlin-ards-classifier
-```
-
-### Docker Compose
-```bash
-AUDIT_SECRET_KEY=your-secure-key docker-compose up
-```
-
----
-
-## 🔒 Security Configuration
-
-Set the `AUDIT_SECRET_KEY` environment variable in production to ensure cryptographic audit trail integrity:
+To start the containerized service:
 
 ```bash
-export AUDIT_SECRET_KEY=$(python -c "import secrets; print(secrets.token_hex(32))")
+export AUDIT_SECRET_KEY="$(python -c 'import secrets; print(secrets.token_hex(32))')"
+docker compose up --build
 ```
 
----
+Compose binds `127.0.0.1:8000` by default. To enable protected audit-log access, separately configure `AUDIT_ADMIN_KEY`. HMAC audit records are in-memory and do not survive a restart; the signing key must be kept secret.
 
-## 📁 Project Structure
+## Privacy and security limitations
 
+- The static browser app does not use telemetry, cookies, local storage, or external application services. CSV/JSON exports stay on the user's machine; avoid entering identifiable patient information.
+- Optional Python CLI/API processes data in its local/container process. Batch exports can include `patient_id`; users are responsible for access controls and retention.
+- Audit and supervisor features use **regex-based pattern screening**, not comprehensive PHI de-identification or HIPAA certification. Never assume arbitrary patient text is safe because a regex check passes.
+- The audit ledger supports HMAC-chain integrity checks, but is not a durable, independently timestamped audit system.
+- No external LLM provider is configured; supervisory chat uses a demonstration mock.
+
+## Tests and CI
+
+```bash
+python -m pip install -e ".[web,dev]"
+python -m pytest -q
+node --check web/app.mjs
+node --test web/calculator.test.mjs
 ```
-pao2-fio2-berlin-ards-classifier/
-├── pf_ratio_ards.py          # Core calculation module & CLI
-├── cli.py                    # CLI entry point
-├── enrichment.py             # Enrichment feature engines
-├── simulator.py              # High-throughput simulation
-├── agents/                   # Enterprise agent framework
-│   ├── base.py               # PHI guard, audit trail, security
-│   ├── models.py             # Pydantic data models
-│   ├── supervisor.py         # Multi-agent orchestrator
-│   ├── workers.py            # Specialized domain workers
-│   ├── llm_factory.py        # LLM provider factory
-│   ├── api.py                # FastAPI REST endpoints
-│   ├── metrics.py            # Prometheus metrics
-│   ├── streamer.py           # WebSocket telemetry
-│   └── learning.py           # Bayesian calibration engine
-├── tests/                    # Pytest test suite
-├── web/                      # Operations console (HTML)
-├── Dockerfile                # Container definition
-├── docker-compose.yml        # Multi-service orchestration
-└── pyproject.toml            # Python package configuration
-```
+
+GitHub Actions tests Python 3.10–3.12 and the browser calculation module. A separate workflow publishes `web/` to GitHub Pages when Pages is enabled in repository settings.
+
+## References and license
+
+- ARDS Definition Task Force. *Acute respiratory distress syndrome: the Berlin Definition*. JAMA. 2012;307:2526–2533. [doi:10.1001/jama.2012.5669](https://doi.org/10.1001/jama.2012.5669).
+- Matthay MA, et al. *A New Global Definition of Acute Respiratory Distress Syndrome*. AJRCCM. 2024. [doi:10.1164/rccm.202303-0558WS](https://doi.org/10.1164/rccm.202303-0558WS).
+
+License: [MIT](LICENSE). Maintainer: Dr. Abu Suraih Sakhri.
