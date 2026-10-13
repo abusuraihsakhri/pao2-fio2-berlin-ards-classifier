@@ -142,8 +142,8 @@ def normal_a_a_gradient(age: float, fio2: float = 0.21) -> float:
 
     Normal A-aDO2 = (Age / 4) + 4  (on room air, FiO2 0.21)
 
-    On supplemental O2, the expected gradient increases. A common
-    adjustment is to add ~5-7 mmHg for each 10% increase in FiO2 above 0.21.
+    This age-only rule is a room-air approximation; do not use it to
+    interpret A-a gradients on supplemental oxygen.
 
     Args:
         age: Patient age in years.
@@ -154,11 +154,9 @@ def normal_a_a_gradient(age: float, fio2: float = 0.21) -> float:
     """
     _finite("Age", age, 0)
     _oxygen_fraction(fio2)
-    base = (age / 4.0) + 4.0
-    # Adjustment for supplemental O2
-    if fio2 > 0.21:
-        base += (fio2 - 0.21) / 0.1 * 5.0
-    return base
+    # Age/4 + 4 is a room-air rule of thumb; supplemental oxygen
+    # does not have a validated linear "normal A-a" correction.
+    return (age / 4.0) + 4.0
 
 
 def berlin_ards_classification(
@@ -237,7 +235,10 @@ def comprehensive_respiratory_assessment(
     if age is not None:
         expected_aa = normal_a_a_gradient(age, fio2)
         result["normal_a_a_gradient"] = round(expected_aa, 1)
-        result["a_a_gradient_elevated"] = aa > expected_aa
+        if math.isclose(fio2, 0.21, abs_tol=1e-9):
+            result["a_a_gradient_elevated"] = aa > expected_aa
+        else:
+            result["normal_a_a_gradient_note"] = "Age-based reference is for room air only"
 
     # Oxygenation Index
     if map_pressure is not None:
@@ -252,6 +253,13 @@ def comprehensive_respiratory_assessment(
         result["estimated_pao2_from_spo2"] = round(est_pao2, 1)
         est_pf = pf_ratio(est_pao2, fio2)
         result["estimated_pf_from_spo2"] = round(est_pf, 1)
+        result["estimated_pao2_note"] = (
+            "Simple educational interpolation only; not validated for clinical decisions"
+        )
+        if spo2 > 97:
+            result["spo2_fio2_warning"] = (
+                "SpO2/FiO2 is unreliable for ARDS severity at SpO2 > 97%"
+            )
 
     return result
 
@@ -287,7 +295,11 @@ def process_csv(input_path: str, output_path: str) -> int:
                     age=optional("age"), spo2=optional("spo2"),
                     patm=patm if patm is not None else PATM_DEFAULT,
                 )
-                res["patient_id"] = row.get("patient_id", "")
+                identifier = row.get("patient_id", "") or ""
+                # Prevent spreadsheet formula execution in exported CSV.
+                if identifier.lstrip().startswith(("=", "+", "-", "@")):
+                    identifier = "'" + identifier
+                res["patient_id"] = identifier
                 results.append(res)
             except (ValueError, TypeError, KeyError) as exc:
                 raise ValueError(f"Invalid CSV data at row {row_number}: {exc}") from exc
