@@ -1,112 +1,113 @@
 {
   "openapi": "3.1.0",
   "info": {
-    "title": "Pao2 Fio2 Berlin Ards Classifier API",
-    "description": "Enterprise Distributed Component Platform (Clinical & Cryptographic AI) adhering to CAP / CLSI / NIST Standards.",
-    "version": "3.0.0-ENTERPRISE",
-    "contact": {
-      "name": "Dr. Abu Suraih Sakhri",
-      "url": "https://github.com/abusuraihsakhri"
-    }
+    "title": "PaO2/FiO2 & Berlin oxygenation calculator",
+    "version": "3.0.0",
+    "description": "Subset of API routes. The running FastAPI /openapi.json is authoritative; the Berlin oxygenation category is not an ARDS diagnosis."
   },
   "paths": {
     "/health": {
       "get": {
-        "summary": "Health and metadata check",
+        "summary": "Service health",
         "responses": {
           "200": {
-            "description": "System optimal"
+            "description": "Service metadata"
           }
         }
       }
     },
-    "/metrics": {
-      "get": {
-        "summary": "Prometheus operational metrics",
+    "/api/assessment": {
+      "post": {
+        "summary": "Calculate oxygenation metrics",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "pao2": {
+                    "type": "number"
+                  },
+                  "fio2": {
+                    "type": "number"
+                  },
+                  "paco2": {
+                    "type": "number"
+                  },
+                  "peep": {
+                    "type": "number"
+                  },
+                  "map_pressure": {
+                    "type": "number"
+                  },
+                  "age": {
+                    "type": "number"
+                  },
+                  "spo2": {
+                    "type": "number"
+                  },
+                  "patm": {
+                    "type": "number"
+                  }
+                },
+                "required": [
+                  "pao2",
+                  "fio2"
+                ]
+              }
+            }
+          }
+        },
         "responses": {
           "200": {
-            "description": "Prometheus text metrics"
+            "description": "Computed oxygenation metrics with caveats"
+          },
+          "422": {
+            "description": "Invalid measurement"
           }
         }
       }
     },
     "/api/audit": {
       "post": {
-        "summary": "Dispatch task payload across specialized workers",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "task_id": {
-                    "type": "string"
-                  },
-                  "target_identifier": {
-                    "type": "string"
-                  },
-                  "primary_metric": {
-                    "type": "number"
-                  },
-                  "secondary_metric": {
-                    "type": "number"
-                  },
-                  "status_descriptor": {
-                    "type": "string"
-                  },
-                  "is_critical_flag": {
-                    "type": "boolean"
-                  }
-                },
-                "required": [
-                  "task_id",
-                  "target_identifier",
-                  "primary_metric"
-                ]
-              }
-            }
-          }
-        },
+        "summary": "Demonstration audit endpoint (not clinical)",
         "responses": {
           "200": {
-            "description": "Consensus dossier with HMAC signature"
+            "description": "Demonstration dossier"
           }
         }
       }
     },
     "/api/chat": {
       "post": {
-        "summary": "Air-gapped supervisory conversational assistant",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "query": {
-                    "type": "string"
-                  }
-                },
-                "required": [
-                  "query"
-                ]
-              }
-            }
-          }
-        },
+        "summary": "Demonstration mock chat endpoint",
         "responses": {
           "200": {
-            "description": "Supervisory response"
+            "description": "Mock response"
           }
         }
       }
     },
     "/api/audit/logs": {
       "get": {
-        "summary": "Retrieve and cryptographically verify HMAC audit trail",
+        "summary": "Read audit logs with X-Admin-Key",
         "responses": {
           "200": {
-            "description": "Cryptographic audit trail"
+            "description": "In-memory HMAC ledger"
+          },
+          "403": {
+            "description": "Admin access required"
+          }
+        }
+      }
+    },
+    "/metrics": {
+      "get": {
+        "summary": "Return JSON audit processing counters",
+        "responses": {
+          "200": {
+            "description": "JSON counters"
           }
         }
       }
