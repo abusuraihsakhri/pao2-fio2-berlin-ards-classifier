@@ -12,6 +12,10 @@ function optionalNumber(value) {
   return value === "" || value === null || value === undefined ? null : Number(value);
 }
 export function assess(inputs) {
+  if (inputs.pao2 === "" || inputs.pao2 === null || inputs.pao2 === undefined ||
+      inputs.fio2 === "" || inputs.fio2 === null || inputs.fio2 === undefined) {
+    throw new RangeError("PaO2 and FiO2 are required.");
+  }
   const pao2 = Number(inputs.pao2);
   const fio2 = Number(inputs.fio2);
   const peep = optionalNumber(inputs.peep);
