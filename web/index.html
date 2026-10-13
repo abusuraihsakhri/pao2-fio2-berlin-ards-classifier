@@ -1,236 +1,103 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pao2 Fio2 Berlin Ards Classifier — Operations Console</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
-    <style>
-        :root {
-            --bg: #090d16;
-            --card: #111827;
-            --border: #1f293d;
-            --accent: #3b82f6;
-            --accent-glow: rgba(59, 130, 246, 0.25);
-            --text: #f3f4f6;
-            --text-muted: #9ca3af;
-            --danger: #ef4444;
-            --warning: #f59e0b;
-            --success: #10b981;
-        }
-        * { box-sizing: border-box; margin: 0; padding: 0; }
-        body {
-            font-family: 'Inter', sans-serif;
-            background: var(--bg);
-            color: var(--text);
-            padding: 2rem;
-            min-height: 100vh;
-        }
-        .header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            border-bottom: 1px solid var(--border);
-            padding-bottom: 1.5rem;
-            margin-bottom: 2rem;
-        }
-        .header-title h1 { font-size: 1.6rem; font-weight: 700; color: #fff; }
-        .header-title p { color: var(--text-muted); font-size: 0.9rem; margin-top: 0.25rem; }
-        .badge {
-            display: inline-block;
-            padding: 0.3rem 0.8rem;
-            border-radius: 9999px;
-            font-size: 0.75rem;
-            font-weight: 600;
-            background: var(--accent-glow);
-            color: var(--accent);
-            border: 1px solid var(--accent);
-        }
-        .grid {
-            display: grid;
-            grid-template-columns: 1fr 1.2fr;
-            gap: 1.5rem;
-        }
-        .card {
-            background: var(--card);
-            border: 1px solid var(--border);
-            border-radius: 12px;
-            padding: 1.5rem;
-            box-shadow: 0 10px 25px rgba(0,0,0,0.3);
-        }
-        .card h2 {
-            font-size: 1.1rem;
-            font-weight: 600;
-            margin-bottom: 1rem;
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-        }
-        .form-group { margin-bottom: 1rem; }
-        label { display: block; font-size: 0.85rem; color: var(--text-muted); margin-bottom: 0.4rem; }
-        input, select, textarea {
-            width: 100%;
-            padding: 0.65rem 0.9rem;
-            background: #0d1322;
-            border: 1px solid var(--border);
-            border-radius: 6px;
-            color: #fff;
-            font-family: inherit;
-            font-size: 0.9rem;
-        }
-        input:focus, textarea:focus { outline: none; border-color: var(--accent); }
-        .btn {
-            background: var(--accent);
-            color: #fff;
-            border: none;
-            padding: 0.7rem 1.4rem;
-            border-radius: 6px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: 0.2s;
-            width: 100%;
-        }
-        .btn:hover { background: #2563eb; }
-        .terminal {
-            background: #060911;
-            border: 1px solid var(--border);
-            border-radius: 8px;
-            padding: 1rem;
-            font-family: 'JetBrains Mono', monospace;
-            font-size: 0.85rem;
-            color: #10b981;
-            height: 380px;
-            overflow-y: auto;
-            white-space: pre-wrap;
-        }
-        .metrics-bar {
-            display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            gap: 1rem;
-            margin-bottom: 1.5rem;
-        }
-        .metric-box {
-            background: var(--card);
-            border: 1px solid var(--border);
-            border-radius: 8px;
-            padding: 1rem;
-            text-align: center;
-        }
-        .metric-val { font-size: 1.4rem; font-weight: 700; color: #fff; margin-top: 0.25rem; }
-        .metric-label { font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; }
-    </style>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <meta name="referrer" content="no-referrer">
+  <title>PaO₂/FiO₂ · Berlin ARDS oxygenation classifier</title>
+  <style>
+    :root { color-scheme: light; --bg:#f3f6fa; --surface:#fff; --ink:#152b43; --muted:#4e6377; --border:#d2dce7; --blue:#174ea6; --focus:#265ed4; }
+    * { box-sizing: border-box; }
+    body { margin:0; background:var(--bg); color:var(--ink); font:16px/1.55 system-ui,-apple-system,"Segoe UI",sans-serif; }
+    main { max-width:1120px; margin:auto; padding:28px 20px 70px; }
+    header { padding-bottom:18px; margin-bottom:24px; border-bottom:1px solid var(--border); }
+    h1 { font-size:clamp(1.5rem,3vw,2rem); letter-spacing:-.04em; line-height:1.2; margin:4px 0 8px; }
+    h2 { font-size:1.16rem; margin:0 0 16px; }
+    p { margin:8px 0; }
+    .eyebrow { color:var(--blue); text-transform:uppercase; font-size:.74rem; letter-spacing:.13em; font-weight:750; }
+    .subtle,small { color:var(--muted); }
+    .layout { display:grid; grid-template-columns:minmax(0,1.15fr) minmax(0,.85fr); gap:18px; align-items:start; }
+    .card { border:1px solid var(--border); border-radius:16px; background:var(--surface); padding:24px; box-shadow:0 2px 10px #152b4310; }
+    .fields { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:15px; }
+    label { display:block; font-size:.87rem; font-weight:650; margin-bottom:6px; }
+    input { width:100%; padding:10px 12px; border:1px solid #9dacbc; border-radius:9px; background:white; color:var(--ink); font:inherit; }
+    input:focus-visible,button:focus-visible,a:focus-visible { outline:3px solid var(--focus); outline-offset:2px; }
+    .hint { font-size:.76rem; color:var(--muted); margin:4px 0 0; }
+    .buttons { margin-top:20px; display:flex; gap:10px; flex-wrap:wrap; }
+    button { appearance:none; border:1px solid var(--blue); background:var(--blue); color:white; border-radius:9px; padding:10px 16px; font:600 .93rem system-ui,sans-serif; cursor:pointer; }
+    button:hover { filter:brightness(.92); }
+    button.secondary { background:white; color:var(--blue); }
+    button:disabled { opacity:.46; cursor:not-allowed; }
+    .result { border-radius:12px; background:#eaf2ff; padding:18px; margin-bottom:18px; }
+    .result .value { font-size:2.7rem; line-height:1.15; font-weight:760; letter-spacing:-.04em; }
+    .result .category { font-size:1.04rem; font-weight:700; }
+    dl { display:grid; grid-template-columns:1fr auto; gap:10px; margin:0; }
+    dt { color:var(--muted); } dd { margin:0; font-weight:700; text-align:right; }
+    .warnings { padding-left:20px; color:#684314; font-size:.9rem; }
+    .warnings li { margin:7px 0; }
+    #error,#batch-error { color:#a22020; font-weight:650; white-space:pre-wrap; }
+    .wide { margin-top:18px; }
+    .note { margin-top:22px; border-left:4px solid #3669a8; padding:9px 16px; background:#eaf1f9; border-radius:4px; font-size:.87rem; }
+    a { color:var(--blue); text-underline-offset:2px; }
+    .footer { color:var(--muted); font-size:.82rem; padding-top:20px; }
+    @media (max-width:800px) { .layout { grid-template-columns:1fr; } }
+    @media (max-width:460px) { .fields { grid-template-columns:1fr; } .card { padding:17px; } }
+  </style>
+  <script type="module" src="./app.mjs"></script>
 </head>
 <body>
-
-    <div class="header">
-        <div class="header-title">
-            <h1>Pao2 Fio2 Berlin Ards Classifier</h1>
-            <p>Domain: Clinical & Cryptographic AI | Standard: CAP / CLSI / NIST Standards | LabMind-Atlas Architecture</p>
+<main>
+  <header>
+    <div class="eyebrow">Respiratory physiology · local calculator</div>
+    <h1>PaO₂/FiO₂ and Berlin ARDS oxygenation ranges</h1>
+    <p class="subtle">Calculate the P/F ratio, review Berlin (2012) oxygenation categories, and optionally estimate oxygenation index and A–a gradient.</p>
+  </header>
+  <div class="layout">
+    <section class="card" aria-labelledby="input-title">
+      <h2 id="input-title">Measurements</h2>
+      <form id="assessment" novalidate>
+        <div class="fields">
+          <div><label for="pao2">PaO₂ (mmHg) *</label><input id="pao2" type="number" min="0" step="any" required value="80"></div>
+          <div><label for="fio2">FiO₂ (fraction) *</label><input id="fio2" type="number" min="0.01" max="1" step="any" required value="0.5"><p class="hint">For 50% oxygen, enter 0.50.</p></div>
+          <div><label for="peep">PEEP / CPAP (cmH₂O)</label><input id="peep" type="number" min="0" step="any" value="10"><p class="hint">Required to verify Berlin pressure criterion.</p></div>
+          <div><label for="paco2">PaCO₂ (mmHg)</label><input id="paco2" type="number" min="0" step="any" value="40"></div>
+          <div><label for="map">Mean airway pressure (cmH₂O)</label><input id="map" type="number" min="0" step="any" placeholder="Optional"></div>
+          <div><label for="age">Age (years)</label><input id="age" type="number" min="0" max="130" step="any" placeholder="Optional"></div>
+          <div><label for="spo2">SpO₂ (%)</label><input id="spo2" type="number" min="0" max="100" step="any" placeholder="Optional"></div>
+          <div><label for="patm">Atmospheric pressure (mmHg)</label><input id="patm" type="number" min="47.01" step="any" value="760"></div>
         </div>
-        <div>
-            <span class="badge">Air-Gapped Active</span>
-            <span class="badge" style="background: rgba(16,185,129,0.2); color: #10b981; border-color: #10b981;">Zero-PHI Guard Active</span>
+        <div class="buttons">
+          <button type="submit">Calculate</button>
+          <button type="button" id="example" class="secondary">Example</button>
+          <button type="reset" class="secondary">Reset</button>
         </div>
-    </div>
-
-    <div class="metrics-bar">
-        <div class="metric-box">
-            <div class="metric-label">System Status</div>
-            <div class="metric-val" style="color: var(--success);" id="m-status">OPTIMAL</div>
-        </div>
-        <div class="metric-box">
-            <div class="metric-label">Tasks Processed</div>
-            <div class="metric-val" id="m-tasks">142</div>
-        </div>
-        <div class="metric-box">
-            <div class="metric-label">Audit Blocks Signed</div>
-            <div class="metric-val" id="m-audit">142</div>
-        </div>
-        <div class="metric-box">
-            <div class="metric-label">PHI Interceptions</div>
-            <div class="metric-val" style="color: var(--accent);" id="m-phi">0</div>
-        </div>
-    </div>
-
-    <div class="grid">
-        <div class="card">
-            <h2>⚙️ Dispatch Distributed Component Audit</h2>
-            <div class="form-group">
-                <label>Task / Sample ID</label>
-                <input type="text" id="task_id" value="TASK-2026-LIVE-01">
-            </div>
-            <div class="form-group">
-                <label>Target Identifier</label>
-                <input type="text" id="target_id" value="SPECIMEN-ALPHA-77">
-            </div>
-            <div class="form-group">
-                <label>Primary Measurement / Value</label>
-                <input type="number" id="primary_metric" value="29.4" step="0.1">
-            </div>
-            <div class="form-group">
-                <label>Secondary Metric / Kinetic Index</label>
-                <input type="number" id="secondary_metric" value="14.8" step="0.1">
-            </div>
-            <div class="form-group">
-                <label>Status / Phenotype Descriptor</label>
-                <input type="text" id="status_descriptor" value="DISCORDANT_ANOMALY">
-            </div>
-            <div class="form-group">
-                <label><input type="checkbox" id="is_critical" checked> Trigger Emergency / Critical Flag</label>
-            </div>
-            <button class="btn" onclick="runAudit()">Execute Distributed Component Audit</button>
-        </div>
-
-        <div class="card">
-            <h2>📊 Real-Time Consensus Dossier & Audit Log</h2>
-            <div class="terminal" id="outputConsole">// Pao2 Fio2 Berlin Ards Classifier Operations Console Ready
-// Connection established with Air-Gapped Supervisor
-// Cryptographic HMAC-SHA256 audit ledger loaded.
-// Ready for live task payload dispatch...</div>
-        </div>
-    </div>
-
-    <script>
-        async function runAudit() {
-            const consoleEl = document.getElementById('outputConsole');
-            consoleEl.innerText = "// Dispatching task across specialized workers...
-// Invoking InvariantQCWorker, SafetyEscalationWorker, ProtocolWorker...";
-
-            const payload = {
-                task_id: document.getElementById('task_id').value,
-                target_identifier: document.getElementById('target_id').value,
-                primary_metric: parseFloat(document.getElementById('primary_metric').value),
-                secondary_metric: parseFloat(document.getElementById('secondary_metric').value),
-                status_descriptor: document.getElementById('status_descriptor').value,
-                is_critical_flag: document.getElementById('is_critical').checked
-            };
-
-            try {
-                const res = await fetch('/api/audit', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload)
-                });
-                const data = await res.json();
-                consoleEl.innerText = JSON.stringify(data, null, 2);
-                document.getElementById('m-tasks').innerText = parseInt(document.getElementById('m-tasks').innerText) + 1;
-                document.getElementById('m-audit').innerText = parseInt(document.getElementById('m-audit').innerText) + 1;
-            } catch (err) {
-                consoleEl.innerText = "// Offline / Simulation Output:\n" + JSON.stringify({
-                    dossier_id: "DOSSIER-SIM-" + Math.floor(Math.random()*10000),
-                    system: "pao2-fio2-berlin-ards-classifier",
-                    domain: "Clinical & Cryptographic AI",
-                    task_id: payload.task_id,
-                    overall_urgency: payload.is_critical_flag ? "CRITICAL_STAT_PANIC" : "ELEVATED_RISK",
-                    integrity_status: "DISCORDANT_ANOMALY",
-                    alerts: [
-                        { worker: "InvariantQCWorker", alert: "Primary metric exceeds upper reference bound" },
-                        { worker: "SafetyEscalationWorker", alert: "Critical emergency interlock flag active" }
-                    ],
-                    audit_hash: "HMAC_SHA256_e83f9a72b941d6c381f9"
-                }, null, 2);
-            }
-        }
-    </script>
+      </form>
+      <p id="error" role="alert" aria-live="assertive"></p>
+    </section>
+    <section class="card" aria-labelledby="result-title">
+      <h2 id="result-title">Calculated assessment</h2>
+      <div id="result" aria-live="polite">
+        <div class="result"><div class="subtle">PaO₂/FiO₂ ratio (mmHg)</div><div class="value" id="pf">—</div><div class="category" id="category">Enter measurements and calculate</div></div>
+        <dl id="metrics"></dl>
+        <ul id="warnings" class="warnings"></ul>
+      </div>
+      <button type="button" id="download" class="secondary" disabled>Download JSON result</button>
+    </section>
+  </div>
+  <section class="card wide" aria-labelledby="batch-title">
+    <h2 id="batch-title">Optional local CSV batch processing</h2>
+    <p class="subtle">Required columns: <code>pao2,fio2</code>. Optional: <code>paco2,peep,map,age,spo2,patm,patient_id</code>. All files are processed in your browser; no upload to a server.</p>
+    <label for="csv">Select CSV file (up to 5 MB, 10,000 rows)</label>
+    <input id="csv" type="file" accept=".csv,text/csv">
+    <p id="batch-status" role="status" aria-live="polite"></p>
+    <p id="batch-error" role="alert"></p>
+    <button type="button" id="download-csv" disabled>Download results CSV</button>
+  </section>
+  <aside class="note">
+    <strong>Clinical scope:</strong> The Berlin definition requires onset within one week, bilateral opacities, edema not fully explained by cardiac failure or fluid overload, and appropriate ventilatory pressure. This tool calculates oxygenation <em>ranges</em> and does not diagnose ARDS or recommend treatment. The later <a href="https://doi.org/10.1164/rccm.202303-0558WS" rel="noopener noreferrer">Global Definition (2024)</a> expands supported contexts; this app intentionally implements Berlin (2012) ranges only.
+  </aside>
+  <p class="footer">References: <a href="https://doi.org/10.1001/jama.2012.5669" rel="noopener noreferrer">Berlin Definition (JAMA, 2012)</a>. No external scripts, storage, accounts, tracking, or automatic network submissions. Avoid patient-identifying data on shared computers. For research and education; not a medical device.</p>
+</main>
 </body>
 </html>
