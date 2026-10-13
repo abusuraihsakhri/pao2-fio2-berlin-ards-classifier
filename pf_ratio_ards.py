@@ -68,8 +68,8 @@ def spo2_fio2_ratio(spo2: float, fio2: float) -> float:
     return spo2 / fio2
 
 def estimate_pao2_from_spo2(spo2: float) -> float:
-    """Estimate PaO2 from SpO2 using a clinical approximation of the
-    oxyhemoglobin dissociation curve (Severinghaus-derived).
+    """Educational PaO2 interpolation from SpO2 using a simplified
+    oxyhemoglobin dissociation curve; not clinically validated.
 
     Piecewise linear approximation based on standard curve data points:
         SpO2 90% -> PaO2 ~60 mmHg
@@ -169,7 +169,7 @@ def berlin_ards_classification(
     if peep is not None:
         _finite("PEEP", peep, 0)
     if pf > 300:
-        severity = "No ARDS (P/F > 300)"
+        severity = "No ARDS oxygenation criterion (P/F > 300)"
     elif pf > 200:
         severity = "Mild ARDS oxygenation range (200 < P/F <= 300)"
     elif pf > 100:
