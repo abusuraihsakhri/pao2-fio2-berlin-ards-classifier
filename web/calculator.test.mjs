@@ -28,5 +28,5 @@ test('CSV parsing supports escaped quotes and quoted newlines', () => {
 });
 test('CSV output prevents formula injection',()=>{
   const result=toCSV([{patient_id:'=HYPERLINK("https://invalid")',pf_ratio:'120'}]);
-  assert.ok(result.includes(''=HYPERLINK'));
+  assert.ok(result.includes(String.fromCharCode(39) + '=HYPERLINK'));
 });
